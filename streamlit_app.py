@@ -44,8 +44,8 @@ st.markdown("""
 # Helper Functions
 @st.cache_data
 def load_data():
-    """Load and cache the taxi data"""
-    df = pd.read_csv('cleaned_taxi_data.csv')
+    """Load and cache the taxi data (first 10,000 rows for performance)"""
+    df = pd.read_csv('cleaned_taxi_data.csv', nrows=10000)
     
     # Convert datetime columns
     datetime_cols = ['tpep_pickup_datetime', 'tpep_dropoff_datetime', 'date']
@@ -92,7 +92,7 @@ page = st.sidebar.radio(
 
 st.sidebar.markdown("---")
 if data_loaded:
-    st.sidebar.success(f"✅ Data loaded: {len(data):,} trips")
+    st.sidebar.success(f"✅ Data loaded")
 else:
     st.sidebar.error("❌ Error: cleaned_taxi_data.csv not found in the current directory")
 

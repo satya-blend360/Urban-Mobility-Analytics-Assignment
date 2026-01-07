@@ -84,7 +84,10 @@ Thumbs.db
 *~
 
 # Data files
-*.csv
-*.xlsx
-*.json
-*.parquet
+ 
+# Ignore large datasets
+cleaned_taxi_data.csv
+yellow_tripdata.csv
+*.db
+
+*.db-journal
