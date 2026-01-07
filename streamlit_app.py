@@ -45,7 +45,7 @@ st.markdown("""
 @st.cache_data
 def load_data():
     """Load and cache the taxi data (first 10,000 rows for performance)"""
-    df = pd.read_csv('cleaned_taxi_data.csv', nrows=10000)
+    df = pd.read_csv('cleaned_taxi_data_10k.csv', nrows=10000)
     
     # Convert datetime columns
     datetime_cols = ['tpep_pickup_datetime', 'tpep_dropoff_datetime', 'date']
@@ -94,7 +94,7 @@ st.sidebar.markdown("---")
 if data_loaded:
     st.sidebar.success(f"✅ Data loaded")
 else:
-    st.sidebar.error("❌ Error: cleaned_taxi_data.csv not found in the current directory")
+    st.sidebar.error("❌ Error: cleaned_taxi_data_10k.csv not found in the current directory")
 
 # Main Content
 st.markdown("<h1 class='main-header'>🚖 Urban Mobility Analytics Platform</h1>", unsafe_allow_html=True)
@@ -751,13 +751,13 @@ if data_loaded:
         st.download_button(
             label="Download Cleaned Dataset",
             data=csv,
-            file_name="cleaned_taxi_data.csv",
+            file_name="cleaned_taxi_data_10k.csv",
             mime="text/csv"
         )
 
 else:
     # Welcome screen when no data is loaded
-    st.info("👆 Please upload your cleaned_taxi_data.csv file using the sidebar to begin analysis")
+    st.info("👆 Please upload your cleaned_taxi_data_10k.csv file using the sidebar to begin analysis")
     
     st.markdown("""
     ## Welcome to the Urban Mobility Analytics Platform! 🚖
