@@ -83,6 +83,100 @@ def create_sql_connection(df):
     df.to_sql('trips', conn, index=False, if_exists='replace')
     return conn
 
+def generate_insights(question, df, kpis):
+    """Generate insights based on user question"""
+    question_lower = question.lower()
+    
+    if 'busiest' in question_lower and 'hour' in question_lower:
+        busiest_hour = df.groupby('hour_of_day').size().idxmax()
+        trips_at_hour = df.groupby('hour_of_day').size().max()
+        return f"The busiest hour is **{busiest_hour}:00** with **{trips_at_hour:,}** trips. This represents peak demand time when surge pricing could be most effective."
+    
+    elif 'revenue' in question_lower and 'day' in question_lower:
+        revenue_by_day = df.groupby('day_name')['total_amount'].sum().sort_values(ascending=False)
+        top_day = revenue_by_day.index[0]
+        top_revenue = revenue_by_day.values[0]
+        return f"**{top_day}** generates the highest revenue at **${top_revenue:,.2f}**. Revenue varies by day due to commuting patterns and weekend leisure travel."
+    
+    elif 'surge' in question_lower or 'peak' in question_lower:
+        peak_hours = df[df['is_peak_hour'] == 1].groupby('hour_of_day').size().sort_values(ascending=False).head(3)
+        peak_list = ', '.join([f"{h}:00" for h in peak_hours.index])
+        return f"Surge demand is highest during **{peak_list}**. These hours coincide with rush hour commutes and typically see increased fares and reduced availability."
+    
+    elif 'distance' in question_lower and 'peak' in question_lower:
+        peak_dist = df[df['is_peak_hour'] == 1]['trip_distance'].mean()
+        off_peak_dist = df[df['is_peak_hour'] == 0]['trip_distance'].mean()
+        return f"Average trip distance during peak hours is **{peak_dist:.2f} miles** compared to **{off_peak_dist:.2f} miles** during off-peak. Peak hour trips tend to be {'shorter' if peak_dist < off_peak_dist else 'longer'} due to commuting patterns."
+    
+    elif 'tip' in question_lower and 'time' in question_lower:
+        tip_by_time = df.groupby('time_of_day')['tip_percentage'].mean().sort_values(ascending=False)
+        best_time = tip_by_time.index[0]
+        best_tip = tip_by_time.values[0]
+        return f"Tips are highest during **{best_time}** with an average of **{best_tip:.1f}%**. Time of day significantly impacts tipping behavior, likely influenced by trip purpose and customer demographics."
+    
+    elif 'weekend' in question_lower or 'weekday' in question_lower:
+        weekend_trips = df[df['is_weekend'] == 1].shape[0]
+        weekday_trips = df[df['is_weekend'] == 0].shape[0]
+        weekend_revenue = df[df['is_weekend'] == 1]['total_amount'].sum()
+        weekday_revenue = df[df['is_weekend'] == 0]['total_amount'].sum()
+        return f"**Weekday trips:** {weekday_trips:,} generating ${weekday_revenue:,.2f}\n**Weekend trips:** {weekend_trips:,} generating ${weekend_revenue:,.2f}\n\nWeekdays show higher volume due to commuting, while weekends may have longer leisure trips."
+    
+    else:
+        return f"""Based on your data analysis:
+        
+- **Total trips analyzed:** {kpis['total_trips']:,}
+- **Total revenue:** ${kpis['total_revenue']:,.2f}
+- **Average fare:** ${kpis['avg_fare']:.2f}
+- **Average trip distance:** {kpis['avg_distance']:.2f} miles
+- **Average tip percentage:** {kpis['avg_tip_percentage']:.1f}%
+
+For more specific insights, try asking about busiest hours, revenue patterns, peak demand, or comparing different time periods."""
+
+def generate_executive_summary(df, kpis):
+    """Generate executive summary report"""
+    busiest_hour = df.groupby('hour_of_day').size().idxmax()
+    busiest_day = df.groupby('day_name').size().idxmax()
+    top_month = df.groupby('month_name')['total_amount'].sum().idxmax()
+    peak_revenue_pct = (df[df['is_peak_hour'] == 1]['total_amount'].sum() / kpis['total_revenue']) * 100
+    
+    summary = f"""
+# Executive Summary - Urban Mobility Analytics
+
+## Overview
+- **Reporting Period:** {df['date'].min().strftime('%B %d, %Y')} to {df['date'].max().strftime('%B %d, %Y')}
+- **Total Trips:** {kpis['total_trips']:,}
+- **Total Revenue:** ${kpis['total_revenue']:,.2f}
+
+## Key Performance Indicators
+- **Average Fare:** ${kpis['avg_fare']:.2f}
+- **Average Trip Distance:** {kpis['avg_distance']:.2f} miles
+- **Revenue per Mile:** ${kpis['revenue_per_mile']:.2f}
+- **Average Trip Duration:** {kpis['avg_duration']:.1f} minutes
+- **Average Tip Percentage:** {kpis['avg_tip_percentage']:.1f}%
+
+## Demand Patterns
+- **Busiest Hour:** {busiest_hour}:00
+- **Busiest Day:** {busiest_day}
+- **Highest Revenue Month:** {top_month}
+- **Peak Hour Revenue Contribution:** {peak_revenue_pct:.1f}%
+
+## Strategic Insights
+1. **Peak Hour Optimization:** Peak hours contribute {peak_revenue_pct:.1f}% of total revenue, indicating strong demand during rush hours
+2. **Distance Efficiency:** Average revenue per mile of ${kpis['revenue_per_mile']:.2f} suggests healthy pricing
+3. **Customer Satisfaction:** Average tip percentage of {kpis['avg_tip_percentage']:.1f}% indicates good service quality
+4. **Operational Efficiency:** Average trip duration of {kpis['avg_duration']:.1f} minutes shows efficient routing
+
+## Recommendations
+- Increase driver availability during peak hours ({busiest_hour}:00) to capture maximum demand
+- Implement dynamic pricing during high-demand periods
+- Focus marketing efforts on {busiest_day}s when demand is highest
+- Monitor and maintain service quality to sustain tip percentages above industry average
+
+---
+*Generated by Urban Mobility Analytics Platform*
+"""
+    return summary
+
 # Sidebar
 st.sidebar.markdown("## 🚖 Navigation")
 page = st.sidebar.radio(
@@ -793,98 +887,3 @@ else:
     
     **Get started by uploading your data file!**
     """)
-
-# Helper functions for GenAI responses
-def generate_insights(question, df, kpis):
-    """Generate insights based on user question"""
-    question_lower = question.lower()
-    
-    if 'busiest' in question_lower and 'hour' in question_lower:
-        busiest_hour = df.groupby('hour_of_day').size().idxmax()
-        trips_at_hour = df.groupby('hour_of_day').size().max()
-        return f"The busiest hour is **{busiest_hour}:00** with **{trips_at_hour:,}** trips. This represents peak demand time when surge pricing could be most effective."
-    
-    elif 'revenue' in question_lower and 'day' in question_lower:
-        revenue_by_day = df.groupby('day_name')['total_amount'].sum().sort_values(ascending=False)
-        top_day = revenue_by_day.index[0]
-        top_revenue = revenue_by_day.values[0]
-        return f"**{top_day}** generates the highest revenue at **${top_revenue:,.2f}**. Revenue varies by day due to commuting patterns and weekend leisure travel."
-    
-    elif 'surge' in question_lower or 'peak' in question_lower:
-        peak_hours = df[df['is_peak_hour'] == 1].groupby('hour_of_day').size().sort_values(ascending=False).head(3)
-        peak_list = ', '.join([f"{h}:00" for h in peak_hours.index])
-        return f"Surge demand is highest during **{peak_list}**. These hours coincide with rush hour commutes and typically see increased fares and reduced availability."
-    
-    elif 'distance' in question_lower and 'peak' in question_lower:
-        peak_dist = df[df['is_peak_hour'] == 1]['trip_distance'].mean()
-        off_peak_dist = df[df['is_peak_hour'] == 0]['trip_distance'].mean()
-        return f"Average trip distance during peak hours is **{peak_dist:.2f} miles** compared to **{off_peak_dist:.2f} miles** during off-peak. Peak hour trips tend to be {'shorter' if peak_dist < off_peak_dist else 'longer'} due to commuting patterns."
-    
-    elif 'tip' in question_lower and 'time' in question_lower:
-        tip_by_time = df.groupby('time_of_day')['tip_percentage'].mean().sort_values(ascending=False)
-        best_time = tip_by_time.index[0]
-        best_tip = tip_by_time.values[0]
-        return f"Tips are highest during **{best_time}** with an average of **{best_tip:.1f}%**. Time of day significantly impacts tipping behavior, likely influenced by trip purpose and customer demographics."
-    
-    elif 'weekend' in question_lower or 'weekday' in question_lower:
-        weekend_trips = df[df['is_weekend'] == 1].shape[0]
-        weekday_trips = df[df['is_weekend'] == 0].shape[0]
-        weekend_revenue = df[df['is_weekend'] == 1]['total_amount'].sum()
-        weekday_revenue = df[df['is_weekend'] == 0]['total_amount'].sum()
-        return f"**Weekday trips:** {weekday_trips:,} generating ${weekday_revenue:,.2f}\n**Weekend trips:** {weekend_trips:,} generating ${weekend_revenue:,.2f}\n\nWeekdays show higher volume due to commuting, while weekends may have longer leisure trips."
-    
-    else:
-        return f"""Based on your data analysis:
-        
-- **Total trips analyzed:** {kpis['total_trips']:,}
-- **Total revenue:** ${kpis['total_revenue']:,.2f}
-- **Average fare:** ${kpis['avg_fare']:.2f}
-- **Average trip distance:** {kpis['avg_distance']:.2f} miles
-- **Average tip percentage:** {kpis['avg_tip_percentage']:.1f}%
-
-For more specific insights, try asking about busiest hours, revenue patterns, peak demand, or comparing different time periods."""
-
-def generate_executive_summary(df, kpis):
-    """Generate executive summary report"""
-    busiest_hour = df.groupby('hour_of_day').size().idxmax()
-    busiest_day = df.groupby('day_name').size().idxmax()
-    top_month = df.groupby('month_name')['total_amount'].sum().idxmax()
-    peak_revenue_pct = (df[df['is_peak_hour'] == 1]['total_amount'].sum() / kpis['total_revenue']) * 100
-    
-    summary = f"""
-# Executive Summary - Urban Mobility Analytics
-
-## Overview
-- **Reporting Period:** {df['date'].min().strftime('%B %d, %Y')} to {df['date'].max().strftime('%B %d, %Y')}
-- **Total Trips:** {kpis['total_trips']:,}
-- **Total Revenue:** ${kpis['total_revenue']:,.2f}
-
-## Key Performance Indicators
-- **Average Fare:** ${kpis['avg_fare']:.2f}
-- **Average Trip Distance:** {kpis['avg_distance']:.2f} miles
-- **Revenue per Mile:** ${kpis['revenue_per_mile']:.2f}
-- **Average Trip Duration:** {kpis['avg_duration']:.1f} minutes
-- **Average Tip Percentage:** {kpis['avg_tip_percentage']:.1f}%
-
-## Demand Patterns
-- **Busiest Hour:** {busiest_hour}:00
-- **Busiest Day:** {busiest_day}
-- **Highest Revenue Month:** {top_month}
-- **Peak Hour Revenue Contribution:** {peak_revenue_pct:.1f}%
-
-## Strategic Insights
-1. **Peak Hour Optimization:** Peak hours contribute {peak_revenue_pct:.1f}% of total revenue, indicating strong demand during rush hours
-2. **Distance Efficiency:** Average revenue per mile of ${kpis['revenue_per_mile']:.2f} suggests healthy pricing
-3. **Customer Satisfaction:** Average tip percentage of {kpis['avg_tip_percentage']:.1f}% indicates good service quality
-4. **Operational Efficiency:** Average trip duration of {kpis['avg_duration']:.1f} minutes shows efficient routing
-
-## Recommendations
-- Increase driver availability during peak hours ({busiest_hour}:00) to capture maximum demand
-- Implement dynamic pricing during high-demand periods
-- Focus marketing efforts on {busiest_day}s when demand is highest
-- Monitor and maintain service quality to sustain tip percentages above industry average
-
----
-*Generated by Urban Mobility Analytics Platform*
-"""
-    return summary
