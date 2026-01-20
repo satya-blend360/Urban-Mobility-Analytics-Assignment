@@ -24,6 +24,9 @@
  
 ---
 
+
+https://urban-mobility-analytics.streamlit.app/
+
 ## 🎯 Project Overview
 
 This comprehensive data engineering and analytics project transforms **2.9 GB of raw NYC taxi trip data** into actionable business intelligence using modern data stack technologies. The platform combines traditional analytics with cutting-edge GenAI capabilities to provide natural language insights for city planners and transportation companies.
